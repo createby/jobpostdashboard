@@ -10,7 +10,7 @@ import io
 import os
 
 # 폰트 등록
-FONT_PATH = "/Users/diff/Library/Fonts/PretendardVariable.ttf"
+FONT_PATH = os.path.join(os.path.dirname(__file__), "PretendardVariable.ttf")
 pdfmetrics.registerFont(TTFont("Pretendard", FONT_PATH))
 
 W, H = A3  # 841.89 x 1190.55 pt
