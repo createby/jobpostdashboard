@@ -143,6 +143,8 @@
     <div class="sidebar-header">
       <label class="upload-btn" for="file-input">📂 엑셀 파일 업로드</label>
       <input type="file" id="file-input" accept=".xlsx,.xls">
+      <button class="upload-btn" style="background:#1565C0;" onclick="downloadSampleExcel()">📥 샘플 엑셀 다운로드</button>
+      <button class="upload-btn" style="background:#555;" onclick="loadSample()">🧪 샘플 데이터로 테스트</button>
       <input type="text" class="search-input" id="search" placeholder="기업명 검색...">
     </div>
     <div class="company-list" id="company-list">
@@ -164,17 +166,79 @@
     </div>
     <div class="action-bar" id="action-bar" style="display:none;">
       <button class="btn-secondary" onclick="resetForm()">초기화</button>
-      <button class="btn-primary" onclick="generatePDF()">📄 PDF 생성 & 다운로드</button>
+      <button class="btn-secondary" onclick="previewPDF()">🔍 미리보기</button>
+      <button class="btn-primary" onclick="generatePDF()">📄 PDF 다운로드</button>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- 미리보기 모달 -->
+<div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:10px; width:90vw; height:90vh; display:flex; flex-direction:column; overflow:hidden;">
+    <div style="padding:12px 16px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-weight:700; font-size:15px;">PDF 미리보기</span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-primary" onclick="generatePDF()" style="padding:6px 16px; font-size:13px;">📄 다운로드</button>
+        <button onclick="closePreview()" style="padding:6px 14px; border:1px solid #ddd; border-radius:6px; cursor:pointer; background:white; font-size:13px;">✕ 닫기</button>
+      </div>
+    </div>
+    <iframe id="preview-frame" style="flex:1; border:none;"></iframe>
+  </div>
+</div>
+
 <script>
 let companies = [];
 let currentIndex = -1;
 let headers = [];
+
+// 샘플 데이터 로드
+function loadSample() {
+  companies = [
+    {
+      "번호": "1", "부스번호": "A01", "ZONE": "대·중견기업ZONE", "기업명": "Adecco Korea",
+      "업종": "서비스업", "사업내용": "HR컨설팅, 헤드헌팅, 스태핑",
+      "회사주소": "서울시 송파구 백제고분로 69", "태그": "면접,상담",
+      "배경색": "#4CAF50", "배경색연한": "#E8F5E9", "qr_url": "https://adecco.co.kr",
+      "기업소개": "Adecco Group은 스위스 취리히에 본사를 두고 전세계 60개국가에서 HR Solution을 제공하고 있는 포춘 글로벌 500대기업입니다. Adecco Korea는 서울(본사), 용인, 부산, 대전, 원주에 사무실을 운영하여 헤드헌팅, 스태핑, 아웃소싱 서비스를 450개이상의 기업에 제공하고 있으며 전체 직원은 2,600명이상입니다.",
+      "채용계획": JSON.stringify([["HR Consultant & Recruiter", "경력(1년이상)", "정규직", "대학교(4년) 졸업", "3명"]]),
+      "담당업무": "고객사 채용 관리(인재채용, 면접일정 조율), 고객사/근무자 계약관리(신규입사, 연장, 퇴사자), 근무자 근태관리, 고객사 청구 관련 제반 작업, 노무 이슈 핸들링",
+      "자격요건": "HR산업에 대한 관심과 이해가 있으신 분 / 동종업계 경력자(1년 이상) / 노무관련 지식 및 채용유관 경험이 있으신 분 / 비지니스 영어 활용 가능자",
+      "급여조건": "회사 내규", "근무지역": "서울",
+      "근무시간": "주 5일(월~금) 8시간 (8~10시 출근, 17~19시 퇴근)",
+      "복리후생": "연차휴가, 명절 선물, 생일 선물, 생일 휴가, 유급 병가, 휴대폰 지원금, 탄력 근무제, 재택근무(주1회), 패밀리 데이"
+    },
+    {
+      "번호": "2", "부스번호": "A02", "ZONE": "대·중견기업ZONE", "기업명": "Sofitel Ambassador Seoul",
+      "업종": "호텔/숙박업", "사업내용": "특급호텔 운영",
+      "회사주소": "서울시 중구 을지로 287", "태그": "면접,상담",
+      "배경색": "#1565C0", "배경색연한": "#E3F2FD", "qr_url": "https://sofitel.com",
+      "기업소개": "소피텔 앰배서더 서울은 서울 도심에 위치한 5성급 럭셔리 호텔로, 프랑스 감성과 한국의 전통이 조화를 이루는 독특한 경험을 제공합니다.",
+      "채용계획": JSON.stringify([["프론트 데스크", "신입/경력", "정규직", "대학교 졸업", "2명"], ["F&B 서비스", "경력(2년이상)", "정규직", "무관", "3명"]]),
+      "담당업무": "호텔 프론트 데스크 운영, 고객 체크인/체크아웃, VIP 고객 응대, 예약 관리",
+      "자격요건": "호텔리어 지망생 / 영어 또는 제2외국어 가능자 / 서비스 마인드 보유자",
+      "급여조건": "면접 후 결정", "근무지역": "서울 중구",
+      "근무시간": "교대근무 (8시간)",
+      "복리후생": "숙식 제공, 유니폼 지급, 직원 할인, 4대보험, 연차휴가"
+    },
+    {
+      "번호": "3", "부스번호": "B01", "ZONE": "중소·강소ZONE", "기업명": "KBS시큐리티",
+      "업종": "보안서비스업", "사업내용": "물리보안, 시스템보안, 출동보안",
+      "회사주소": "서울시 영등포구 여의도동", "태그": "면접",
+      "배경색": "#B71C1C", "배경색연한": "#FFEBEE", "qr_url": "https://kbssecurity.co.kr",
+      "기업소개": "KBS시큐리티는 20년 이상의 보안 전문 기업으로 전국 주요 시설의 물리보안 및 시스템 보안 서비스를 제공하고 있습니다.",
+      "채용계획": JSON.stringify([["보안요원", "신입", "정규직", "고졸이상", "10명"]]),
+      "담당업무": "시설 경비 및 출입 통제, 순찰 업무, 비상상황 대응",
+      "자격요건": "경비지도사 자격증 우대 / 군필자 우대 / 체력 우수자",
+      "급여조건": "월 230만원~", "근무지역": "서울/경기",
+      "근무시간": "교대근무 (12시간)",
+      "복리후생": "4대보험, 퇴직금, 명절상여금, 근속수당"
+    }
+  ];
+  renderList(companies);
+  showToast('샘플 데이터 3개 로드 완료');
+}
 
 // 엑셀 업로드
 document.getElementById('file-input').addEventListener('change', async (e) => {
@@ -408,6 +472,31 @@ document.addEventListener('input', (e) => {
   if (e.target.id === 'f_배경색') document.getElementById('f_배경색_hex').value = e.target.value;
   if (e.target.id === 'f_배경색연한') document.getElementById('f_배경색연한_hex').value = e.target.value;
 });
+
+async function previewPDF() {
+  const data = collectData();
+  showToast('미리보기 생성 중...');
+  const res = await fetch('/preview_pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) { showToast('오류 발생'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  document.getElementById('preview-frame').src = url;
+  const modal = document.getElementById('preview-modal');
+  modal.style.display = 'flex';
+}
+
+function closePreview() {
+  document.getElementById('preview-modal').style.display = 'none';
+  document.getElementById('preview-frame').src = '';
+}
+
+function downloadSampleExcel() {
+  window.location.href = '/sample_excel';
+}
 
 async function generatePDF() {
   const data = collectData();

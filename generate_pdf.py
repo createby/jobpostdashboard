@@ -4,7 +4,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from PIL import Image as PILImage
+from reportlab.lib.utils import ImageReader
 import qrcode
 import io
 import os
@@ -80,7 +80,7 @@ def generate_company_pdf(data, output_path):
     qr_size = header_h
     qr_text = data.get("qr_url", data.get("기업명", ""))
     qr_buf = make_qr_image(qr_text)
-    c.drawImage(qr_buf, margin, y - qr_size, qr_size, qr_size, preserveAspectRatio=True)
+    c.drawImage(ImageReader(qr_buf), margin, y - qr_size, qr_size, qr_size, preserveAspectRatio=True)
 
     # 부스번호 박스
     booth_x = margin + qr_size + 4 * mm
